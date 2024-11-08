@@ -2,7 +2,6 @@
 #
 # Dev Helper Tools (DHT)
 # MIT License
-#
 
 # === Define Directories ===
 SOURCE="${BASH_SOURCE[0]}"
@@ -20,7 +19,6 @@ load_config() {
 
   # Check if the default configuration file exists
   if [ -f "$DEFAULT_CONFIG" ]; then
-    # shellcheck disable=SC1090
     source "$DEFAULT_CONFIG"
   else
     echo "Warning: Default configuration file not found at '$DEFAULT_CONFIG'. Using default settings."
@@ -29,7 +27,6 @@ load_config() {
   # Load user-specific configuration
   local CONFIG_FILE="$HOME/.dht_config"
   if [ -f "$CONFIG_FILE" ]; then
-    # shellcheck disable=SC1090
     source "$CONFIG_FILE"
   fi
 
@@ -87,20 +84,32 @@ persist_alias_configuration() {
 load_aliases() {
   # Load Git aliases
   if [[ "$DHT_LOAD_GIT_ALIASES" == "true" ]]; then
-    source "$ROOT_DIR/aliases/git_aliases.zsh"
-    echo "Git aliases enabled."
+    if [[ -f "$ROOT_DIR/aliases/git_aliases.zsh" ]]; then
+      source "$ROOT_DIR/aliases/git_aliases.zsh"
+      echo "Git aliases enabled."
+    else
+      echo "Warning: Git aliases file not found at '$ROOT_DIR/aliases/git_aliases.zsh'."
+    fi
   fi
 
   # Load Laravel aliases
   if [[ "$DHT_LOAD_LARAVEL_ALIASES" == "true" ]]; then
-    source "$ROOT_DIR/aliases/laravel_aliases.zsh"
-    echo "Laravel aliases enabled."
+    if [[ -f "$ROOT_DIR/aliases/laravel_aliases.zsh" ]]; then
+      source "$ROOT_DIR/aliases/laravel_aliases.zsh"
+      echo "Laravel aliases enabled."
+    else
+      echo "Warning: Laravel aliases file not found at '$ROOT_DIR/aliases/laravel_aliases.zsh'."
+    fi
   fi
 
   # Load System aliases
   if [[ "$DHT_LOAD_SYSTEM_ALIASES" == "true" ]]; then
-    source "$ROOT_DIR/aliases/system_aliases.zsh"
-    echo "System aliases enabled."
+    if [[ -f "$ROOT_DIR/aliases/system_aliases.zsh" ]]; then
+      source "$ROOT_DIR/aliases/system_aliases.zsh"
+      echo "System aliases enabled."
+    else
+      echo "Warning: System aliases file not found at '$ROOT_DIR/aliases/system_aliases.zsh'."
+    fi
   fi
 }
 

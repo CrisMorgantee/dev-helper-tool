@@ -1,27 +1,33 @@
 # dht.plugin.zsh
 
-# Carregar configurações do usuário ou padrão
+# Determina o diretório base do plugin
+DHT_PLUGIN_DIR="${0:A:h}"
+
+# Carrega o arquivo de configuração (prioriza o config do usuário)
 if [[ -f "$HOME/.dht_config" ]]; then
   source "$HOME/.dht_config"
 else
-  source "${0:A:h}/config/dht.conf"
+  source "$DHT_PLUGIN_DIR/config/dht.conf"
 fi
 
-# Carregar a função principal
-source "${0:A:h}/bin/dht"
+# Carrega a função principal do Dev Helper Tools (dht)
+source "$DHT_PLUGIN_DIR/bin/dht"
 
-# Carregar funções para verificar dependências de aliases
-source "${0:A:h}/functions/dht.zsh"
+# Carrega as funções de verificação de dependências
+source "$DHT_PLUGIN_DIR/functions/dht.zsh"
 
-# Carregar aliases conforme configurações
+# Carrega aliases com base nas configurações
 if [[ "$DHT_LOAD_GIT_ALIASES" == "true" ]]; then
-  source "${0:A:h}/aliases/git_aliases.zsh"
+  source "$DHT_PLUGIN_DIR/aliases/git_aliases.zsh"
+  echo "Git aliases enabled."
 fi
 
 if [[ "$DHT_LOAD_LARAVEL_ALIASES" == "true" ]]; then
-  source "${0:A:h}/aliases/laravel_aliases.zsh"
+  source "$DHT_PLUGIN_DIR/aliases/laravel_aliases.zsh"
+  echo "Laravel aliases enabled."
 fi
 
 if [[ "$DHT_LOAD_SYSTEM_ALIASES" == "true" ]]; then
-  source "${0:A:h}/aliases/system_aliases.zsh"
+  source "$DHT_PLUGIN_DIR/aliases/system_aliases.zsh"
+  echo "System aliases enabled."
 fi
