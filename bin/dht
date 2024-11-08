@@ -1,0 +1,417 @@
+#!/usr/bin/env bash
+#
+# Dev Helper Tools (DHT)
+# MIT License
+#
+
+# === Define Directories ===
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# === Load Configuration ===
+load_config() {
+  local DEFAULT_CONFIG="$ROOT_DIR/config/dht.conf"
+
+  # Check if the default configuration file exists
+  if [ -f "$DEFAULT_CONFIG" ]; then
+    # shellcheck disable=SC1090
+    source "$DEFAULT_CONFIG"
+  else
+    echo "Warning: Default configuration file not found at '$DEFAULT_CONFIG'. Using default settings."
+  fi
+
+  # Load user-specific configuration
+  local CONFIG_FILE="$HOME/.dht_config"
+  if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+  fi
+
+  # Default variables
+  DHT_REMOTE="${DHT_REMOTE:-origin}"
+  DHT_CACHE_DURATION="${DHT_CACHE_DURATION:-30}"
+  DHT_EXCLUDE_BRANCHES="${DHT_EXCLUDE_BRANCHES:-main|master|develop}"
+  CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dht"
+  mkdir -p "$CACHE_DIR"
+  CACHE_FILE="$CACHE_DIR/branch"
+}
+
+# === Persist Configuration ===
+persist_alias_configuration() {
+  local CONFIG_FILE="$HOME/.dht_config"
+
+  # Ensure the config file exists
+  [ -f "$CONFIG_FILE" ] || touch "$CONFIG_FILE"
+
+  # Update the configuration for each alias type based on user input
+  if [[ "$ENABLE_GIT_ALIASES" == "true" ]]; then
+    sed -i'' -e '/^DHT_LOAD_GIT_ALIASES=/d' "$CONFIG_FILE"
+    echo "DHT_LOAD_GIT_ALIASES=true" >> "$CONFIG_FILE"
+  fi
+
+  if [[ "$ENABLE_LARAVEL_ALIASES" == "true" ]]; then
+    sed -i'' -e '/^DHT_LOAD_LARAVEL_ALIASES=/d' "$CONFIG_FILE"
+    echo "DHT_LOAD_LARAVEL_ALIASES=true" >> "$CONFIG_FILE"
+  fi
+
+  if [[ "$ENABLE_SYSTEM_ALIASES" == "true" ]]; then
+    sed -i'' -e '/^DHT_LOAD_SYSTEM_ALIASES=/d' "$CONFIG_FILE"
+    echo "DHT_LOAD_SYSTEM_ALIASES=true" >> "$CONFIG_FILE"
+  fi
+
+  if [[ "$DISABLE_GIT_ALIASES" == "true" ]]; then
+    sed -i'' -e '/^DHT_LOAD_GIT_ALIASES=/d' "$CONFIG_FILE"
+    echo "DHT_LOAD_GIT_ALIASES=false" >> "$CONFIG_FILE"
+  fi
+
+  if [[ "$DISABLE_LARAVEL_ALIASES" == "true" ]]; then
+    sed -i'' -e '/^DHT_LOAD_LARAVEL_ALIASES=/d' "$CONFIG_FILE"
+    echo "DHT_LOAD_LARAVEL_ALIASES=false" >> "$CONFIG_FILE"
+  fi
+
+  if [[ "$DISABLE_SYSTEM_ALIASES" == "true" ]]; then
+    sed -i'' -e '/^DHT_LOAD_SYSTEM_ALIASES=/d' "$CONFIG_FILE"
+    echo "DHT_LOAD_SYSTEM_ALIASES=false" >> "$CONFIG_FILE"
+  fi
+
+  echo "Alias configuration persisted to $CONFIG_FILE."
+}
+
+# === Load Aliases ===
+load_aliases() {
+  # Load Git aliases
+  if [[ "$DHT_LOAD_GIT_ALIASES" == "true" ]]; then
+    source "$ROOT_DIR/aliases/git_aliases.zsh"
+    echo "Git aliases enabled."
+  fi
+
+  # Load Laravel aliases
+  if [[ "$DHT_LOAD_LARAVEL_ALIASES" == "true" ]]; then
+    source "$ROOT_DIR/aliases/laravel_aliases.zsh"
+    echo "Laravel aliases enabled."
+  fi
+
+  # Load System aliases
+  if [[ "$DHT_LOAD_SYSTEM_ALIASES" == "true" ]]; then
+    source "$ROOT_DIR/aliases/system_aliases.zsh"
+    echo "System aliases enabled."
+  fi
+}
+
+# === Display Help ===
+display_help() {
+  echo "Usage: dht [options] [branch_name]"
+  echo "Options:"
+  echo "  -n                     Do not execute 'git pull' after checkout"
+  echo "  -a                     Execute 'git fetch --all'"
+  echo "  -c <cache_duration>    Set cache duration in minutes (default $DHT_CACHE_DURATION)"
+  echo "  -p                     Remove local branches that no longer exist on the remote"
+  echo "  -f                     Force switch branches even if there are uncommitted changes"
+  echo "  -cl                    Clear the branch cache file"
+  echo "  --alias                Open the interactive alias configuration menu"
+  echo "  -h                     Display this help"
+  echo "  -man                   Show the complete manual"
+}
+
+# === Display Manual ===
+display_manual() {
+  man "$ROOT_DIR/man/dht.1"
+}
+
+# === Parse Options ===
+parse_options() {
+  SYNC=true
+  FETCH_ALL=false
+  PRUNE=false
+  FORCE=false
+  CLEAR_CACHE=false
+  SAVE_CONFIG=false
+  OPEN_INTERACTIVE=false
+
+  # Check if the first argument is '-man'
+  if [[ "$1" == "-man" ]]; then
+    display_manual
+    exit 0
+  fi
+
+  # Custom option parsing to support multi-letter options
+  while [[ "$1" == -* ]]; do
+    case "$1" in
+      -n) SYNC=false ;;
+      -a) FETCH_ALL=true ;;
+      -c) shift; DHT_CACHE_DURATION="$1" ;;
+      -p) PRUNE=true ;;
+      -f) FORCE=true ;;
+      -cl) CLEAR_CACHE=true ;;
+      --alias) OPEN_INTERACTIVE=true ;;
+      -h)
+        display_help
+        exit 0
+        ;;
+      *)
+        echo "Invalid option: $1"
+        display_help
+        exit 1
+        ;;
+    esac
+    shift
+  done
+
+  BRANCH_NAME="$1"
+}
+
+# === Clear Cache ===
+clear_cache() {
+  if [ -f "$CACHE_FILE" ]; then
+    rm "$CACHE_FILE"
+    echo "Branch cache cleared."
+  else
+    echo "No cache file to clear."
+  fi
+}
+
+# === Check Remote Accessibility ===
+check_remote_access() {
+  if ! git ls-remote &>/dev/null; then
+    echo "Error: The remote repository is not accessible. Please check your network connection."
+    exit 1
+  fi
+}
+
+# === Fetch Updates ===
+fetch_updates() {
+  if $FETCH_ALL; then
+    git fetch --all
+  else
+    git fetch "$DHT_REMOTE"
+  fi
+}
+
+# === Prune Branches ===
+prune_branches() {
+  if $PRUNE; then
+    git remote prune "$DHT_REMOTE"
+    echo "Orphaned local branches removed."
+  fi
+}
+
+# === Determine Branch Name ===
+determine_branch_name() {
+  if [[ -n "$BRANCH_NAME" ]]; then
+    BRANCH="$BRANCH_NAME"
+  else
+    BRANCH=$(git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/remotes/"$DHT_REMOTE" |
+      grep -Ev "$DHT_REMOTE/($DHT_EXCLUDE_BRANCHES)" | head -n 1)
+  fi
+
+  if [[ -z "$BRANCH" ]]; then
+    echo "No remote branches found matching the specified criteria."
+    echo "Available remote branches are:"
+    git branch -r
+    echo ""
+    read -rp "Do you want to create a new local branch? (y/n): " CREATE_BRANCH
+    if [[ "$CREATE_BRANCH" == "y" ]]; then
+      read -rp "Enter the name of the new branch: " NEW_BRANCH
+      BRANCH="$NEW_BRANCH"
+      echo "Select the base branch to create '$BRANCH' from:"
+      echo "1) main"
+      echo "2) current branch ($(git rev-parse --abbrev-ref HEAD))"
+      read -rp "Enter your choice (1 or 2): " BASE_CHOICE
+      if [[ "$BASE_CHOICE" == "1" ]]; then
+        BASE_BRANCH="$DHT_REMOTE/main"
+      elif [[ "$BASE_CHOICE" == "2" ]]; then
+        BASE_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+      else
+        echo "Invalid choice. Operation canceled."
+        exit 1
+      fi
+    else
+      echo "Operation canceled."
+      exit 1
+    fi
+  else
+    BRANCH="${BRANCH#"$DHT_REMOTE/"}"
+  fi
+}
+
+# === Check for Uncommitted Changes ===
+check_uncommitted_changes() {
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  if [ "$CURRENT_BRANCH" != "$BRANCH" ]; then
+    if ! git diff-index --quiet HEAD --; then
+      if [ "$FORCE" = true ]; then
+        echo "Warning: You have uncommitted changes, but proceeding due to force option."
+      else
+        echo "Warning: You have uncommitted changes."
+        read -rp "Switching branches may result in data loss. Do you want to continue? (y/n): " PROCEED
+        if [[ "$PROCEED" != "y" ]]; then
+          echo "Operation canceled."
+          exit 1
+        fi
+      fi
+    fi
+  fi
+}
+
+# === Switch to Branch ===
+switch_to_branch() {
+  if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+    if ! git checkout "$BRANCH"; then
+      echo "Error: Failed to check out the branch '$BRANCH'."
+      exit 1
+    fi
+    if $SYNC; then
+      if ! git pull "$DHT_REMOTE" "$BRANCH"; then
+        echo "Error: Failed to update the branch '$BRANCH' from remote."
+        exit 1
+      fi
+    fi
+    echo "Switched to the local branch '$BRANCH' (updated)."
+  else
+    # Check if the branch exists remotely
+    if git ls-remote --exit-code --heads "$DHT_REMOTE" "$BRANCH" &>/dev/null; then
+      # Create the local branch from remote
+      if git checkout -b "$BRANCH" "$DHT_REMOTE/$BRANCH"; then
+        echo "Switched to the new branch '$BRANCH' created from remote."
+      else
+        echo "Error: Failed to create the new branch '$BRANCH' from remote."
+        exit 1
+      fi
+    else
+      # Create the local branch from the selected base branch
+      if git checkout -b "$BRANCH" "$BASE_BRANCH"; then
+        echo "Branch '$BRANCH' does not exist remotely. Created new local branch '$BRANCH' from '$BASE_BRANCH'."
+      else
+        echo "Error: Failed to create the new branch '$BRANCH' from '$BASE_BRANCH'."
+        exit 1
+      fi
+    fi
+  fi
+}
+
+# === Alias Configuration Sub-Menu ===
+alias_configuration_menu() {
+  while true; do
+    echo ""
+    echo "Alias Configuration Options:"
+    echo "1) Enable Git Aliases"
+    echo "2) Disable Git Aliases"
+    echo "3) Enable Laravel Aliases"
+    echo "4) Disable Laravel Aliases"
+    echo "5) Enable System Aliases"
+    echo "6) Disable System Aliases"
+    echo "7) Enable All Aliases"
+    echo "8) Disable All Aliases"
+    echo "9) Exit Configuration"
+    echo ""
+    echo "You can select multiple options separated by space (e.g., 1 3 5)"
+    read -rp "Choose one or more options (1-9): " -a SELECTIONS
+
+    for CHOICE in "${SELECTIONS[@]}"; do
+      case "$CHOICE" in
+        1)
+          ENABLE_GIT_ALIASES="true"
+          DISABLE_GIT_ALIASES="false"
+          echo "Git aliases enabled."
+          ;;
+        2)
+          DISABLE_GIT_ALIASES="true"
+          ENABLE_GIT_ALIASES="false"
+          echo "Git aliases disabled."
+          ;;
+        3)
+          ENABLE_LARAVEL_ALIASES="true"
+          DISABLE_LARAVEL_ALIASES="false"
+          echo "Laravel aliases enabled."
+          ;;
+        4)
+          DISABLE_LARAVEL_ALIASES="true"
+          ENABLE_LARAVEL_ALIASES="false"
+          echo "Laravel aliases disabled."
+          ;;
+        5)
+          ENABLE_SYSTEM_ALIASES="true"
+          DISABLE_SYSTEM_ALIASES="false"
+          echo "System aliases enabled."
+          ;;
+        6)
+          DISABLE_SYSTEM_ALIASES="true"
+          ENABLE_SYSTEM_ALIASES="false"
+          echo "System aliases disabled."
+          ;;
+        7)
+          ENABLE_GIT_ALIASES="true"
+          ENABLE_LARAVEL_ALIASES="true"
+          ENABLE_SYSTEM_ALIASES="true"
+          DISABLE_GIT_ALIASES="false"
+          DISABLE_LARAVEL_ALIASES="false"
+          DISABLE_SYSTEM_ALIASES="false"
+          echo "All aliases enabled."
+          ;;
+        8)
+          DISABLE_GIT_ALIASES="true"
+          DISABLE_LARAVEL_ALIASES="true"
+          DISABLE_SYSTEM_ALIASES="true"
+          ENABLE_GIT_ALIASES="false"
+          ENABLE_LARAVEL_ALIASES="false"
+          ENABLE_SYSTEM_ALIASES="false"
+          echo "All aliases disabled."
+          ;;
+        9)
+          echo "Exiting Alias Configuration."
+          exit 0
+          ;;
+        *)
+          echo "Invalid option: $CHOICE. Please choose between 1 and 9."
+          ;;
+      esac
+    done
+
+    # Persist the configuration after processing selections
+    persist_alias_configuration
+
+    # Load the aliases based on updated configuration
+    load_aliases
+  done
+}
+
+# === Main Execution Flow ===
+main() {
+  load_config
+  parse_options "$@"
+
+  # Persist alias configuration if options were set
+  if [[ "$SAVE_CONFIG" == "true" ]]; then
+    persist_alias_configuration
+  fi
+
+  # Open interactive menu if the user selected the option
+  if [[ "$OPEN_INTERACTIVE" == "true" ]]; then
+    alias_configuration_menu
+  fi
+
+  # Clear cache if requested
+  if $CLEAR_CACHE; then
+    clear_cache
+    exit 0
+  fi
+
+  # Load aliases based on options and configuration
+  load_aliases
+
+  # Check and manage Git branches
+  check_remote_access
+  fetch_updates
+  prune_branches
+  determine_branch_name
+  check_uncommitted_changes
+  switch_to_branch
+}
+
+main "$@"

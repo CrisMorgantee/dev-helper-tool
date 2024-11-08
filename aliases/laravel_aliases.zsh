@@ -1,0 +1,18 @@
+# Laravel Aliases
+
+alias a='php artisan'
+alias m='a migrate'
+alias mm='a make:model'
+alias mc='a make:controller'
+alias mr='a make:controller -r'
+alias ma='a make:model -cmrfs'
+alias mf='a migrate:fresh'
+alias mfs='a migrate:fresh --seed'
+alias mrs='a migrate:refresh --seed'
+alias rl='a route:list'
+alias horizon='a horizon'
+alias key='a key:generate'
+alias pint='./vendor/bin/pint'
+alias slink='a storage:link'
+alias tk='a tinker'
+alias tp='a test --parallel'

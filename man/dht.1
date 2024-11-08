@@ -1,0 +1,134 @@
+.\" Manpage for dht
+.TH dht 1 "November 2024" "Version 1.0" "User Commands"
+.SH NAME
+dht \- Dev Helper Tools - Utilitário de gerenciamento de desenvolvimento
+.SH SYNOPSIS
+.B dht
+[\fIoptions\fR] [\fIbranch_name\fR]
+.SH DESCRIPTION
+\fBdht\fR é uma ferramenta que auxilia desenvolvedores em tarefas comuns, incluindo gerenciamento de branches Git e carregamento de aliases personalizados para Git, Laravel e comandos do sistema.
+
+O utilitário \fBdht\fR permite:
+
+- Gerenciar branches Git de forma simplificada.
+- Carregar aliases personalizados para Git, Laravel e comandos do sistema.
+- Gerenciar dependências necessárias para determinados comandos.
+
+.SH OPTIONS
+.TP
+.B \-n
+Não executa 'git pull' após o checkout.
+.TP
+.B \-a
+Executa 'git fetch \-\-all'.
+.TP
+.B \-c \fIcache_duration\fR
+Define a duração do cache em minutos (padrão é 30).
+.TP
+.B \-p
+Remove branches locais que não existem mais no remoto.
+.TP
+.B \-f
+Força a troca de branches mesmo se houver alterações não commitadas.
+.TP
+.B \-cl
+Limpa o arquivo de cache de branches.
+.TP
+.B --enable-git-aliases
+Habilita de forma persistente os aliases Git.
+.TP
+.B --disable-git-aliases
+Desabilita de forma persistente os aliases Git.
+.TP
+.B --enable-laravel-aliases
+Habilita de forma persistente os aliases Laravel.
+.TP
+.B --disable-laravel-aliases
+Desabilita de forma persistente os aliases Laravel.
+.TP
+.B --enable-system-aliases
+Habilita de forma persistente os aliases do sistema.
+.TP
+.B --disable-system-aliases
+Desabilita de forma persistente os aliases do sistema.
+.TP
+.B \-h
+Exibe esta mensagem de ajuda.
+.TP
+.B \-man
+Mostra o manual completo.
+
+.SH USO
+Para utilizar as funcionalidades de gerenciamento de branches:
+
+.IP
+\fBdht [opções] [branch_name]\fR
+
+Se nenhum nome de branch for fornecido, \fBdht\fR tentará determinar o branch remoto mais recente que corresponda aos critérios especificados.
+
+Para carregar os aliases, basta configurar o arquivo de configuração para habilitar ou desabilitar os conjuntos de aliases desejados.
+
+.SH EXEMPLOS
+.TP
+Mudar para o branch 'feature/new-feature':
+.IP
+\fBdht feature/new-feature\fR
+.TP
+Buscar todas as atualizações e limpar branches obsoletos:
+.IP
+\fBdht \-a \-p\fR
+.TP
+Habilitar de forma persistente os aliases Git e Laravel:
+.IP
+\fBdht --enable-git-aliases --enable-laravel-aliases\fR
+.TP
+Desabilitar de forma persistente os aliases do sistema:
+.IP
+\fBdht --disable-system-aliases\fR
+
+.SH CONFIGURAÇÃO
+\fBdht\fR lê as configurações de um arquivo de configuração padrão localizado em \fIconfig/dht.conf\fR no diretório do plugin e de um arquivo de configuração específico do usuário em \fI$HOME/.dht_config\fR.
+
+Os arquivos de configuração podem definir as seguintes variáveis:
+
+.TP
+.B DHT_REMOTE
+Especifica o nome do repositório remoto (padrão é 'origin').
+.TP
+.B DHT_CACHE_DURATION
+Especifica a duração do cache em minutos (padrão é 30).
+.TP
+.B DHT_EXCLUDE_BRANCHES
+Um padrão regex de nomes de branches a serem excluídos ao determinar o branch mais recente (padrão é 'main|master|develop').
+
+Para os aliases, você pode habilitar ou desabilitar conjuntos específicos no arquivo de configuração:
+
+.TP
+.B DHT_LOAD_GIT_ALIASES
+Habilita os aliases Git (true/false).
+.TP
+.B DHT_LOAD_LARAVEL_ALIASES
+Habilita os aliases Laravel (true/false).
+.TP
+.B DHT_LOAD_SYSTEM_ALIASES
+Habilita os aliases do sistema (true/false).
+
+.SH ARQUIVOS
+.TP
+.I config/dht.conf
+Arquivo de configuração padrão.
+.TP
+.I $HOME/.dht_config
+Arquivo de configuração específico do usuário.
+
+.SH VEJA TAMBÉM
+git(1), zsh(1)
+
+.SH AUTOR
+Escrito por Cristiano Morgante.
+
+.SH LICENÇA
+Licença MIT.
+
+.SH BUGS
+Reporte bugs para <seu_email@example.com>.
