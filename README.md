@@ -23,7 +23,7 @@ configurações personalizadas de maneira prática.
 1. **Clone o repositório no diretório de plugins do Oh My Zsh:**
 
    ```sh
-   git clone https://github.com/CrisMorgantee/dev-helper-tool ~/.oh-my-zsh/custom/plugins/dht
+   git clone https://github.com/CrisMorgantee/dev-helper-tool ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/dht
    ```
 
 2. **Adicione o plugin ao seu `.zshrc`:**
