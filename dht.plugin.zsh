@@ -1,44 +1,32 @@
 # dht.plugin.zsh
 
-# Carregar funções
-if [[ -f "${0:A:h}/functions/dht.zsh" ]]; then
-  source "${0:A:h}/functions/dht.zsh"
-else
-  echo "Warning: dht function file not found at '${0:A:h}/functions/dht.zsh'."
-fi
+# Obter o diretório deste script
+PLUGIN_DIR="${0:a:h}"
 
-# Carregar configurações
+# Carregar configurações do usuário ou padrão
 if [[ -f "$HOME/.dht_config" ]]; then
   source "$HOME/.dht_config"
 else
-  if [[ -f "${0:A:h}/config/dht.conf" ]]; then
-    source "${0:A:h}/config/dht.conf"
-  else
-    echo "Warning: Default configuration file not found."
-  fi
+  source "$PLUGIN_DIR/config/dht.conf"
 fi
 
-# Carregar aliases selecionados pelo usuário
+# Carregar aliases conforme configurações
 if [[ "$DHT_LOAD_GIT_ALIASES" == "true" ]]; then
-  if [[ -f "${0:A:h}/aliases/git_aliases.zsh" ]]; then
-    source "${0:A:h}/aliases/git_aliases.zsh"
-  else
-    echo "Warning: Git aliases file not found."
-  fi
+  source "$PLUGIN_DIR/aliases/git_aliases.zsh"
 fi
 
 if [[ "$DHT_LOAD_LARAVEL_ALIASES" == "true" ]]; then
-  if [[ -f "${0:A:h}/aliases/laravel_aliases.zsh" ]]; then
-    source "${0:A:h}/aliases/laravel_aliases.zsh"
-  else
-    echo "Warning: Laravel aliases file not found."
-  fi
+  source "$PLUGIN_DIR/aliases/laravel_aliases.zsh"
 fi
 
 if [[ "$DHT_LOAD_SYSTEM_ALIASES" == "true" ]]; then
-  if [[ -f "${0:A:h}/aliases/system_aliases.zsh" ]]; then
-    source "${0:A:h}/aliases/system_aliases.zsh"
-  else
-    echo "Warning: System aliases file not found."
-  fi
+  source "$PLUGIN_DIR/aliases/system_aliases.zsh"
 fi
+
+# Carregar funções
+source "$PLUGIN_DIR/functions/check-dependencies.zsh"
+
+# Definir a função dht
+function dht() {
+  DHT_PLUGIN_DIR="$PLUGIN_DIR" zsh "$PLUGIN_DIR/bin/dht" "$@"
+}
